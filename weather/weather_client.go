@@ -23,14 +23,14 @@ type ForecastResponse struct {
 func GetPressureForecast() ([]float64, error) {
 	url := fmt.Sprintf("%s?q=%s&appid=%s&units=metric", apiURL, city, apiKey)
 
-	resp, err := http.Get(url)
+	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
 	var forecast ForecastResponse
-	if err := json.NewDecoder(resp.Body).Decode(&forecast); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&forecast); err != nil {
 		return nil, err
 	}
 

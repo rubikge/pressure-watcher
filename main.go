@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"pressure-watcher/api"
 	"pressure-watcher/db"
 	"pressure-watcher/weather"
 	"time"
@@ -29,6 +30,11 @@ func main() {
 			fmt.Println("⚠ The pressure will significantly fluctuate in the next 24 hours!")
 		}
 	}
+
+	go api.StartServer(func() (bool, error) {
+		_, _, significantChange, err := db.GetLastPressureLog(database)
+		return significantChange, err
+	})
 
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
