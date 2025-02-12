@@ -2,15 +2,11 @@ package service
 
 import "pressure-watcher-app/models"
 
-type WeatherServiceInterface interface {
-	IsSignificantChange() (bool, error)
-}
-
 type WeatherService struct {
-	db *models.Database
+	db models.DatabaseInterface
 }
 
-func NewWeatherService(db *models.Database) *WeatherService {
+func NewWeatherService(db models.DatabaseInterface) *WeatherService {
 	return &WeatherService{db: db}
 }
 
@@ -22,7 +18,7 @@ func (ws *WeatherService) IsSignificantChange() (bool, error) {
 		return false, err
 	}
 
-	significantChange := pressureForecast.MaxPressure-pressureForecast.MinPressure > pressureThreshold
+	significantChange := pressureForecast.MaxPressure-pressureForecast.MinPressure >= pressureThreshold
 
 	return significantChange, nil
 }

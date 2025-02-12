@@ -16,6 +16,10 @@ type PressureLog struct {
 	MaxPressure float32   `gorm:"type:real"`
 }
 
+type DatabaseInterface interface {
+	GetLatestPressureForecast() (*weather_client.PressureForecast, error)
+}
+
 type Database struct {
 	*gorm.DB
 }
