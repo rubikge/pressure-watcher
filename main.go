@@ -1,78 +1,29 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
-	"os"
-	"pressure-watcher/api"
-	"pressure-watcher/db"
-	"pressure-watcher/weather"
-	"time"
+	"pressure-watcher-app/config"
+	"pressure-watcher-app/handlers"
+	"pressure-watcher-app/models"
+	"pressure-watcher-app/scheduler"
+	"pressure-watcher-app/weather_client"
 
-	_ "github.com/lib/pq"
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
-	fmt.Println("Pressure Watcher Service started...")
+	cfg := config.LoadConfig()
 
-	database, err := db.InitDB()
+	db, err := models.NewDatabase(cfg.DatabaseUrl)
 	if err != nil {
-		log.Printf("%v\n", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
-	minPressure, maxPressure, significantChange, err := db.GetLastPressureLog(database)
-	if err == nil {
-		fmt.Printf("Min Pressure: %.2f hPa, Max Pressure: %.2f hPa\n", minPressure, maxPressure)
+	wc := weather_client.NewWeatherClient(cfg.WeatherApiUrl)
 
-		if significantChange {
-			fmt.Println("⚠ The pressure will significantly fluctuate in the next 24 hours!")
-		}
-	}
+	scheduler.Start(wc, db)
 
-	go api.StartServer(func() (bool, error) {
-		_, _, significantChange, err := db.GetLastPressureLog(database)
-		return significantChange, err
-	})
-
-	ticker := time.NewTicker(1 * time.Hour)
-	defer ticker.Stop()
-
-	pressureThreshold := 10.0
-
-	FetchAndSavePressureData(database, pressureThreshold)
-
-	for range ticker.C {
-		FetchAndSavePressureData(database, pressureThreshold)
-	}
-}
-
-func FetchAndSavePressureData(database *sql.DB, pressureThreshold float64) {
-	pressures, err := weather.GetPressureForecast()
-	if err != nil {
-		log.Printf("Error fetching forecast: %v\n", err)
-		return
-	}
-
-	if len(pressures) == 0 {
-		log.Printf("No pressure data available")
-		return
-	}
-
-	minPressure := pressures[0]
-	maxPressure := pressures[0]
-
-	for _, p := range pressures {
-		if p < minPressure {
-			minPressure = p
-		}
-		if p > maxPressure {
-			maxPressure = p
-		}
-	}
-
-	significantChange := maxPressure-minPressure > pressureThreshold
-
-	db.SavePressureLog(database, minPressure, maxPressure, significantChange)
+	app := fiber.New()
+	app.Get("/pressure-check", handlers.GetLatestWeatherHandler(db))
+	app.Listen(":8080")
 }
